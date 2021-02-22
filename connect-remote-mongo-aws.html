@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Connect to remote MongoDB on AWS EC2 simply and securely via SSH tunnel</title>
+    <link rel="stylesheet" href="./styles/railscasts.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles/main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+<body>
+<h1>Connect to remote MongoDB on AWS EC2 simply and securely via SSH tunnel</h1>
+<p>To connect to a remote MongoDB server running on AWS EC2 that only allows local connections you can use an SSH tunnel, also known as SSH port forwarding.</p>
+<p style="text-align: justify">An SSH tunnel creates a connection between a port on your local machine and an address + port on the server, and tunnels the data to the server over SSH on port <strong style="color: red">22</strong> so it doesn't get blocked by any firewalls or security groups (assuming SSH connections are allowed to the server). After the data reaches the SSH server it gets forwarded to the address + port you specified when you created the SSH tunnel. An important detail here is that the destination address + port are accessed from the context of the server, so <strong style="color: red">localhost</strong> or <strong style="color: red">127.0.0.1</strong> refer to the server machine on the destination side of the tunnel, not your local machine.</p>
+
+<h2>Create an SSH Tunnel to a remote MongoDB server</h2>
+<p>Here's an example command that I used to create an SSH tunnel between port <strong style="color: red">8000</strong> on my local machine and the MongoDB port <strong style="color: red">27017</strong> on an Ubuntu server running on AWS EC2.</p>
+
+<pre>
+       <code class="language-bash">
+          ssh -i ~/my-aws-key.pem -N -f -L 8000:localhost:27017 ubuntu@ec2-54-252-168-106.ap-southeast-2.compute.amazonaws.com
+       </code>
+</pre>
+<ul class="g">
+    <li><strong style="color: red">-i ~/my-aws-key.pem</strong> specifies the path to the ssh private key file to use for authentication.</li>
+    <li><strong style="color: red">-N</strong> instructs ssh not execute a remote command, so it won't open a remote shell on the server.</li>
+    <li><strong style="color: red">-f</strong> instructs ssh to run in the background.</li>
+    <li><strong style="color: red">-L 8000:localhost:27017</strong> tells ssh to connect your local (<strong style="color:red">L</strong>) port 8000 to the address + port <strong style="color: red">localhost:27017</strong> on the server, in other words to MongoDB running locally on the server.</li>
+    <li><strong style="color: red">ubuntu@ec2-54-252-168-106.ap-southeast-2.compute.amazonaws.com</strong>is the username and address to the AWS EC2 server that I used for testing.</li>
+</ul>
+
+<h2>Connect Mongo Shell to remote MongoDB server</h2>
+<p>After creating an SSH tunnel with the above command you can connect to the remote mongodb server as if it were running on your local machine on port 8000 like this.</p>
+<pre>
+    <code class="language-bash">
+        mongo --port 8000
+    </code>
+</pre>
+
+<h2>Connect MongoDB Compass to remote server</h2>
+<p>To connect to the remote mongodb server from MongoDB Compass use the following connection string to connect through the SSH tunnel on port 8000.</p>
+
+<pre>
+    <code class="language-bash">
+       mongodb://localhost:8000
+    </code>
+</pre>
+
+<h2>Close SSH Tunnel to MongoDB</h2>
+<p>To close an SSH tunnel that is open in the background you can kill the background process. </p>
+<p>Run this command to find out the id of the process for the SSH tunnel (and all other 'ssh' processes').</p>
+<pre>
+    <code class="language-bash">
+        ps aux | grep ssh
+    </code>
+</pre>
+<p>Then run this command to kill the process and close the SSH tunnel.</p>
+<pre class=" language-shell">
+    <code class="language-bash">
+        kill -9 <<span>process</span> <span>id></span>
+    </code>
+</pre>
+<h2>Setup MongoDB Server on AWS EC2</h2>
+<p>For instructions on how to quickly setup a production ready MongoDB + Node.js server on <a href="./mongodb-prod-server-ubuntu18-ubntu19.html"> AWS EC2 see Setup Node.js + MongoDB Production Server on Ubuntu</a>.  MEAN Stack application to AWS.</p>
+
+<h2>Connection alternative</h2>
+
+<p>Downloads software <a href="http://localhost:63342/aws-deployment-guia-jamstack/connect-remote-mongo-aws.html?_ijt=kbi887gl9j08q5bneh34bi39do" target="_blank" > robomongo </a> of connection alternative.</p>
+<img src="images/robot_mongo.png" alt="alternative-connection" />
+
+
+<hr>
+
+<h2>More Post</h2>
+<ul>
+    <li> <a href="./mongodb-prod-server-ubuntu18-ubntu19.html" target="_blank">Setup Node.js + MongoDB Production Server on Ubuntu 18.04 - Ubuntu 19.04</a> </li>
+    <li> <a href="./vue-prod-ubuntu-mewn-node.html" target="_blank" >Vue.js + Node.js on AWS - How to Deploy a MEVN Stack App to Amazon EC2</a></li>
+    <li> <a href="./react-prod-aws-mern-node.html" target="_blank" >React + Node.js on AWS - How to Deploy a MERN Stack App to Amazon EC2</a></li>
+    <li> <a href="./angular-prod-ubuntu-mean-node.html" target="_blank" >Angular + Node.js on AWS - How to Deploy a MEAN Stack App to Amazon EC2</a></li>
+</ul>
+
+</body>
+</html>

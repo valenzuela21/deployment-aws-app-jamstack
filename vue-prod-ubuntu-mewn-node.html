@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vue.js + Node.js on AWS - How to Deploy a MEVN Stack App to Amazon EC2</title>
+    <link rel="stylesheet" href="./styles/railscasts.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles/main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+<body>
+<h1>Vue.js + Node.js on AWS - How to Deploy a MEVN Stack App to Amazon EC2</h1>
+<p>In this tutorial we're going to setup a production ready web server from scratch on AWS EC2 (Elastic Compute Cloud),
+    then deploy a custom MEVN Stack application to it that supports user registration and authentication.</p>
+
+<h2>What is a MEVN Stack App?</h2>
+<p>A MEVN Stack application is made up of a front-end app built with Vue.js that connects to a back-end api built with
+    <strong style="color: #0AAEB3">Node.js + Express + MongoDB</strong>, hence the name MEVN Stack (Mongo, Express, Vue,
+    Node). Other variations of the stack include the MEAN Stack that has an Angular front-end, and the MERN Stack that
+    has a React front-end.</p>
+
+<h2>Create a new Ubuntu Server on AWS EC2</h2>
+<p>Before doing anything we need a server that we can work on, follow these steps to spin up a new Ubuntu 18.04 server
+    instance on AWS EC2.</p>
+<ol class="f">
+    <li>Sign into the AWS Management Console at <a href="https://aws.amazon.com/console/">https://aws.amazon.com/console/.</a>
+        If you don't have an account yet click the "Create a Free Account" button and follow the prompts.
+    </li>
+    <li>Go to the EC2 Service section.</li>
+    <li>Click the "Launch Instance" button.</li>
+    <li><strong>Choose AMI</strong> - Check the "Free tier only" checkbox, enter "Ubuntu" in search box and press enter,
+        then select the <strong>"Ubuntu Server 18.04"</strong> Amazon Machine Image (AMI).
+    </li>
+    <li><strong>Choose Instance Type</strong> - Select the "t2.micro" (Free tier eligible) instance type and click
+        "Configure Security Group" in the top menu.
+    </li>
+    <li><strong>Configure Security Group</strong> - Add a new rule to allow HTTP traffic then click "Review and Launch".
+    </li>
+    <li><strong>Review</strong> - Click Launch</li>
+    <li>Select "Create a new key pair", enter a name for the key pair (e.g. "my-aws-key") and click "Download Key Pair"
+        to download the private key, you will use this to connect to the server via SSH.
+    </li>
+    <li>Click "Launch Instances", then scroll to the bottom of the page and click "View Instances" to see details of the
+        new Ubuntu EC2 instance that is launching.
+    </li>
+</ol>
+<h2>Connect to Ubuntu EC2 Instance via SSH</h2>
+<p>Once the EC2 instance reaches a running state you can connect to it via SSH using the private key downloaded in the
+    previous step.</p>
+<ol class="f">
+    <li>Open a terminal window and update the permissions of the private key file with the command chmod 400 e.g.
+        <strong style="color: red">chmod 400 ~/Downloads/my-aws-key.pem</strong>, the key must not be publicly viewable
+        for SSH to work.
+    </li>
+    <li>Copy the "Public DNS (IPv4)" property from the instance description tab in the AWS Console, then connect to the
+        instance from the terminal window with the command ssh -i <strong style="color: red">ubuntu@</strong> e.g.
+        <strong style="color: red">ssh -i ~/Downloads/my-aws-key.pem
+            ubuntu@ec2-52-221-185-40.ap-southeast-2.compute.amazonaws.com</strong></li>
+    <li>Enter <strong style="color: red">yes</strong> to the prompt "Are you sure you want to continue connecting
+        (yes/no)?" to add the url to your list of known hosts.
+    </li>
+</ol>
+<strong>NOTE: If you're using Windows you can connect to your instance via SSH using the PuTTY SSH client, for
+    instructions see Connect Using PuTTY in the AWS docs.</strong>
+<h2>Setup Web Server with Node.js + MongoDB + NGINX</h2>
+<p>The below command executes a script to automatically setup and configure a production ready MEVN Stack web server on
+    Ubuntu that includes Node.js, MongoDB, PM2, NGINX and UFW.</p>
+<p>For more details about how the script works see Setup <strong style="color: #0AAEB3">Node.js + MongoDB Production
+    Server on Ubuntu.</strong></p>
+<p>While connected to the new AWS EC2 instance in the terminal window, run the following command:
+    <strong style="color: red"> curl
+        https://gist.githubusercontent.com/cornflourblue/f0abd30f47d96d6ff127fe8a9e5bbd9f/raw/e3047c9dc3ce8b796e7354c92d2c47ce61981d2f/setup-nodejs-mongodb-production-server-on-ubuntu-1804.sh
+        | sudo bash</strong></p>
+
+<p>For instructions on how to securely connect to the remote MongoDB server from your local machine using Mongo Shell or
+    MongoDB Compass see <a href="./connect-remote-mongo-aws.html" target="_blank">Connect to remote MongoDB on AWS EC2 simply and securely via SSH
+        tunnel.</a></p>
+
+<h2>Deploy Node.js + MongoDB Back-end API</h2>
+<p>Follow these steps to setup the Node.js API on the server and configure NGINX to enable access to it.</p>
+<ol class="f">
+    <li>Clone the Node.js + MongoDB API project into the <strong style="color: red">/opt/back-end</strong> directory
+        with the command <strong style="color: red">sudo git clone
+            https://github.com/cornflourblue/node-mongo-registration-login-api /opt/back-end</strong></li>
+    <li>Navigate into the back-end directory and install all required npm packages with the command <strong
+            style="color: red">cd /opt/back-end && sudo npm install</strong></li>
+    <li>Start the API using the PM2 process manager with command <strong style="color: red">sudo pm2 start
+        server.js</strong></li>
+</ol>
+<p>The API is now running on Node.js under the PM2 process manager and listening on port <strong
+        style="color: red">4000</strong>. Only port <strong style="color: red">80</strong> (HTTP) is publicly accessible
+    on the server so we can't hit the API yet, this will be possible after we've configured NGINX as a reverse proxy to
+    pass through HTTP traffic to the api (more on this shortly).</p>
+<h2>Deploy Vue.js + Vuex Front-end app</h2>
+<p>Follow these steps to setup the Vue.js application on the server.</p>
+<ol class="f">
+    <li>Clone the Vue + Vuex project into the <strong style="color: red">/opt/front-end</strong> directory with the
+        command <strong style="color: red">sudo git clone
+            https://github.com/cornflourblue/vue-vuex-registration-login-example.git /opt/front-end</strong></li>
+    <li>Navigate into the front-end directory and install all required npm packages with the command <strong
+            style="color: red">cd /opt/front-end && sudo npm install</strong></li>
+    <li>Update the app to use real backend API:
+        <ul>
+            <li>Run the command sudo <strong style="color: red">nano /opt/front-end/src/index.js</strong> to open the
+                main vue entry file in the nano text editor.
+            </li>
+            <li>Delete the following lines from the file to remove the fake backend that the vue app uses by default:
+                <pre>
+                    <code class="language-javascript">
+                        <span class="line-number">// Setup fake backend</span>
+                        <span class="line-number">import { configureFakeBackend } from './_helpers';</span>
+                        <span class="line-number">onfigureFakeBackend();</span>
+                </code>
+                </pre>
+            </li>
+            <li>Save the file by pressing <strong style="color: #0AAEB3">ctrl + x</strong> and selecting Yes to save.
+            </li>
+        </ul>
+    </li>
+    <li>
+        Configure the path to API:
+        <ul>
+            <li>Run the command <strong style="color: red">sudo nano /opt/front-end/webpack.config.js</strong> to open
+                the webpack config file in the nano text editor.
+            </li>
+            <li>Change the apiUrl config property to <strong style="color: red">'/api'</strong> like below, this is the public path we will
+                configure in NGINX in the next section:
+                <pre>
+                    <code class="language-javascript">
+                        <span class="line-number">// global app config object</span>
+                        <span class="line-number">config: JSON.stringify({</span>
+                        <span class="line-number">   apiUrl: '/api'</span>
+                        <span class="line-number">})</span>
+                </code>
+                </pre>
+            </li>
+        </ul>
+    </li>
+    <li>
+        Build the front end app with the command <strong style="color:red;">sudo npm run build</strong>
+    </li>
+</ol>
+<p>The Vue.js app is now built and ready to be served from the <strong style="color:red">/opt/front-end/dist</strong>
+    directory, in the next step we'll configure our NGINX web server to enable access to it.</p>
+
+<h2>Configure NGINX to serve the Node.js API and Vue.js front-end</h2>
+<p>Since our MEVN Stack application is made up of two separate projects that both need to be accessed via the same port
+    (HTTP on port 80), we're going to use NGINX as our public facing web server to receive requests for both the
+    front-end and back-end, and decide where to send each request based on its path. Requests beginning with the path
+    <strong style="color: red">/api/*</strong> will be proxied through to the Node.js api running on port 4000, while
+    other requests will serve the Vue.js front-end app and associated files (js/css/images).</p>
+<p>Follow these steps to configure NGINX for the MEVN stack app.</p>
+<ol class="f">
+    <li>Delete the default NGINX site config file with the command <strong style="color: red">sudo rm
+        /etc/nginx/sites-available/default</strong></li>
+    <li>Launch the nano text editor to create an new default site config file with <strong style="color: red">sudo nano
+        /etc/nginx/sites-available/default</strong></li>
+    <li>Paste in the following config:
+        <pre>
+        <code class="language-bash">server {
+  listen 80 default_server;
+  server_name _;
+
+  # vue app & front-end files
+  location / {
+    root /opt/front-end/dist;
+    try_files $uri /index.html;
+  }
+
+  # node api reverse proxy
+  location /api/ {
+    proxy_pass http://localhost:4000/;
+  }
+}
+        </code>
+    </pre>
+    </li>
+    <li>
+        Save the file by pressing <strong style="color:red">ctrl + x</strong> and selecting <strong style="color: red">Yes</strong> to save.
+    </li>
+    <li>
+        Restart NGINX with the command <strong style="color: red">sudo systemctl restart nginx</strong>
+    </li>
+</ol>
+<h2>NGINX Config Reference</h2>
+<p><strong style="color: red">server { ... }</strong> defines a <strong style="color: #0AAEB3">server</strong> block which contains the configuration for a virtual server within NGINX.</p>
+<p><strong style="color: red">listen 80 default_server;</strong> uses the <strong style="color: #0AAEB3">listen</strong> directive to configure the virtual server to accept requests on port 80 and sets it as the default virtual server on this NGINX server.</p>
+<p><strong style="color: red">server_name _;</strong> uses the <strong style="color: #0AAEB3">server_name</strong> directive to set the server name to an underscore (_) to make this server block a catch-all block that matches any domain name that doesn't match another more specific server block. Since this example has only one server block it will match all domain names.</p>
+<p><strong style="color: red">location / { ... }</strong> defines a <strong style="color: #0AAEB3">location</strong> block which contains the configuration for requests that have a URI beginning with a forward slash (/), unless the request URI matches another more specific location block.</p>
+<p><strong style="color: red">root /opt/front-end/dist;</strong> uses the <strong style="color: #0AAEB3">root</strong> directive to set the root directory to the front end dist folder (<strong style="color: red">/opt/front-end/dist</strong>) for requests matching this location block.</p>
+<p><strong style="color: red">try_files $uri /index.html;</strong> uses the <strong style="color: #0AAEB3">try_files</strong> directive to first check for the existence of a file matching the request URI ($uri) and returning it if there is one. If no file matches the request URI then it defaults to returning /index.html.</p>
+<p><strong style="color: red">location /api/ { ... }</strong> defines a <strong style="color: #0AAEB3">location</strong> block which contains the configuration for requests that have a URI beginning with <strong style="color: red">/api/</strong>.</p>
+<p><strong style="color: red">proxy_pass http://localhost:4000/;</strong> uses the proxy_pass directive to proxy requests beginning with <strong style="color: red">/api/</strong> through to the Node.js API running at <strong style="color: red">http://localhost:4000/</strong>.</p>
+
+<hr>
+<h2>More Post</h2>
+<ul>
+    <li> <a href="./mongodb-prod-server-ubuntu18-ubntu19.html" target="_blank">Setup Node.js + MongoDB Production Server on Ubuntu 18.04 - Ubuntu 19.04</a> </li>
+    <li> <a href="./vue-prod-ubuntu-mewn-node.html" target="_blank" >Vue.js + Node.js on AWS - How to Deploy a MEVN Stack App to Amazon EC2</a></li>
+    <li> <a href="./react-prod-aws-mern-node.html" target="_blank" >React + Node.js on AWS - How to Deploy a MERN Stack App to Amazon EC2</a></li>
+    <li> <a href="./angular-prod-ubuntu-mean-node.html" target="_blank" >Angular + Node.js on AWS - How to Deploy a MEAN Stack App to Amazon EC2</a></li>
+</ul>
+</body>
+</html>
